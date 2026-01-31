@@ -52,39 +52,36 @@ export const EmotionPerformance: React.FC = () => {
 
     const categorizedResults = useMemo(() => {
         const categories: CategorizedTakes = {
-            'Hesitation & Pauses': [],
-            'Laughter & Humor': [],
-            'Emotional Peaks': [],
-            'Analytical & Technical': [],
-            'Standard Dialogue': []
+            'Joy & Happiness': [],
+            'Sadness & Melancholy': [],
+            'Anger & Frustration': [],
+            'Fear & Anxiety': [],
+            'Disgust & Contempt': [],
+            'Surprise & Shock': [],
+            'Neutral & Balanced': [],
+            'Analytical & Technical': []
         };
 
         takes.forEach(take => {
             const meta = take.ai_metadata || {};
-            const audio = meta.audio || {};
-            const behaviors = audio.behavioral_markers || {};
-            const pause = behaviors.hesitation_duration || 0;
-            const laughter = behaviors.laughter_detected || false;
-            const emotion = meta.emotion || 'neutral';
+            const emotion = (meta.emotion || 'neutral').toLowerCase();
 
-            if (pause > 1.0) {
-                categories['Hesitation & Pauses'].push(take);
-            }
-            if (laughter) {
-                categories['Laughter & Humor'].push(take);
-            }
-            if (emotion === 'analytical') {
+            if (emotion === 'joy' || emotion === 'happy') {
+                categories['Joy & Happiness'].push(take);
+            } else if (emotion === 'sad' || emotion === 'sadness') {
+                categories['Sadness & Melancholy'].push(take);
+            } else if (emotion === 'anger' || emotion === 'angry' || emotion === 'tense') {
+                categories['Anger & Frustration'].push(take);
+            } else if (emotion === 'fear') {
+                categories['Fear & Anxiety'].push(take);
+            } else if (emotion === 'disgust') {
+                categories['Disgust & Contempt'].push(take);
+            } else if (emotion === 'surprised' || emotion === 'surprise') {
+                categories['Surprise & Shock'].push(take);
+            } else if (emotion === 'analytical' || emotion === 'thoughtful') {
                 categories['Analytical & Technical'].push(take);
-            }
-            if (emotion !== 'neutral' && emotion !== 'unknown' && emotion !== 'analytical') {
-                categories['Emotional Peaks'].push(take);
-            }
-            if (!laughter && pause <= 1.0 && (emotion === 'neutral' || emotion === 'unknown' || emotion === 'analytical')) {
-                // We show analytical in its own section AND Standard if it matches? 
-                // No, let's keep sections distinct.
-                if (emotion !== 'analytical') {
-                    categories['Standard Dialogue'].push(take);
-                }
+            } else {
+                categories['Neutral & Balanced'].push(take);
             }
         });
 
@@ -125,19 +122,19 @@ export const EmotionPerformance: React.FC = () => {
 
                 <div className="space-y-16 pb-12">
                     {Object.entries(categorizedResults).map(([category, items], sectionIndex) => (
-                        items.length > 0 && (
-                            <motion.section
-                                key={category}
-                                initial={{ opacity: 0, y: 30 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: sectionIndex * 0.1 }}
-                            >
-                                <div className="flex items-center gap-4 mb-8">
-                                    <h2 className="text-2xl font-bold text-white/90">{category}</h2>
-                                    <div className="h-[1px] flex-1 bg-gradient-to-r from-white/10 to-transparent" />
-                                    <span className="text-xs font-mono text-editor-muted uppercase tracking-widest">{items.length} Clips Found</span>
-                                </div>
+                        <motion.section
+                            key={category}
+                            initial={{ opacity: 0, y: 30 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: sectionIndex * 0.1 }}
+                        >
+                            <div className="flex items-center gap-4 mb-8">
+                                <h2 className="text-2xl font-bold text-white/90">{category}</h2>
+                                <div className="h-[1px] flex-1 bg-gradient-to-r from-white/10 to-transparent" />
+                                <span className="text-xs font-mono text-editor-muted uppercase tracking-widest">{items.length} Clips Found</span>
+                            </div>
 
+                            {items.length > 0 ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                                     {items.map((take) => (
                                         <TakeCard
@@ -147,8 +144,15 @@ export const EmotionPerformance: React.FC = () => {
                                         />
                                     ))}
                                 </div>
-                            </motion.section>
-                        )
+                            ) : (
+                                <div className="py-12 border border-dashed border-white/5 rounded-2xl flex flex-col items-center justify-center bg-white/[0.02]">
+                                    <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-3">
+                                        <LayoutGrid size={20} className="text-editor-muted/50" />
+                                    </div>
+                                    <p className="text-xs font-mono text-editor-muted/40 uppercase tracking-widest">No spectral matches found for this emotional profile</p>
+                                </div>
+                            )}
+                        </motion.section>
                     ))}
                 </div>
 
@@ -201,11 +205,14 @@ const TakeCard = ({ take, onClick }: { take: Take, onClick: () => void }) => {
                 <div className="absolute top-3 left-3 flex flex-col gap-2 z-20">
                     <span className={cn(
                         "px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border backdrop-blur-md self-start transition-colors",
-                        emotion === 'tense' ? "bg-red-500/20 text-red-400 border-red-500/30" :
-                            emotion === 'happy' ? "bg-green-500/20 text-green-400 border-green-500/30" :
-                                emotion === 'sad' ? "bg-blue-500/20 text-blue-400 border-blue-500/30" :
-                                    emotion === 'awkward' ? "bg-purple-500/20 text-purple-400 border-purple-500/30" :
-                                        "bg-black/60 text-white/70 border-white/10"
+                        (emotion === 'joy' || emotion === 'happy') ? "bg-green-500/20 text-green-400 border-green-500/30" :
+                            (emotion === 'sad' || emotion === 'sadness') ? "bg-blue-500/20 text-blue-400 border-blue-500/30" :
+                                (emotion === 'anger' || emotion === 'angry' || emotion === 'tense') ? "bg-red-500/20 text-red-400 border-red-500/30" :
+                                    (emotion === 'fear') ? "bg-indigo-500/20 text-indigo-400 border-indigo-500/30" :
+                                        (emotion === 'disgust') ? "bg-orange-500/20 text-orange-400 border-orange-500/30" :
+                                            (emotion === 'surprised' || emotion === 'surprise') ? "bg-pink-500/20 text-pink-400 border-pink-500/30" :
+                                                (emotion === 'analytical' || emotion === 'thoughtful') ? "bg-cyan-500/20 text-cyan-400 border-cyan-500/30" :
+                                                    "bg-slate-500/20 text-slate-400 border-slate-500/30"
                     )}>
                         {emotion}
                     </span>

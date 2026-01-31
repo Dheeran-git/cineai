@@ -177,29 +177,69 @@ class ProcessingOrchestrator:
             
             self._progress[take.id]["logs"].append("Building multimodal context description...")
             
-            # Determine emotion from CV analysis or Filename Heuristics (Fallback)
-            emotion_label = "neutral"
-            # Fix: Check 'objects' (from cv_service) not 'objects_detected'
-            if cv_data.get("objects"):
-                emotion_label = "thoughtful"
-            else:
-                 # Heuristic: Check filename for emotion keywords (for testing without full AI)
-                 fname = take.file_name.lower()
-                 if "screen recording" in fname or "screenshot" in fname:
-                     emotion_label = "analytical"
-                 else:
-                     emotions = ["angry", "happy", "sad", "surprised", "fear", "disgust", "joy", "neutral", "excited", "tense"]
-                     for e in emotions:
-                         if e in fname:
-                             emotion_label = e
-                             break
+            # -- NEW: Advanced Multi-Modal Emotion Inference --
+            self._progress[take.id]["logs"].append("Initiating Multi-Modal Emotion Inference...")
+            
+            # 1. NLP Contribution (40%)
+            nlp_res = await nlp_service.analyze_emotion(transcript)
+            nlp_emotion = nlp_res["emotion"]
+            nlp_scores = nlp_res.get("scores", {})
+            
+            # 2. Audio Contribution (30%)
+            audio_emotion = "neutral"
+            if behaviors.get("laughter_detected"): audio_emotion = "joy"
+            elif behaviors.get("hesitation_duration", 0) > 1.2: audio_emotion = "thoughtful"
+            
+            # 3. Visual/Context Contribution (30%)
+            visual_emotion = "neutral"
+            energy = cv_data.get("energy_level", "calm")
+            comp = cv_data.get("complexity", "simple")
+            
+            if energy == "high-intensity":
+                visual_emotion = "surprised" if comp == "intricate" else "angry"
+            elif energy == "dynamic":
+                visual_emotion = "joy"
+            elif comp == "intricate":
+                visual_emotion = "thoughtful"
+            
+            if "screen recording" in take.file_name.lower():
+                visual_emotion = "analytical"
+            
+            # Weighted Voting
+            emotion_weights = {
+                "joy": 0.0, "sadness": 0.0, "angry": 0.0, "fear": 0.0, 
+                "disgust": 0.0, "surprised": 0.0, "neutral": 0.0, 
+                "analytical": 0.0, "thoughtful": 0.0
+            }
+            
+            # Add NLP Weights
+            for e, s in nlp_scores.items():
+                if e in emotion_weights: emotion_weights[e] += (s * 0.4)
+            if nlp_emotion in emotion_weights: emotion_weights[nlp_emotion] += 0.2 # Bonus for winning NLP
+            
+            # Add Audio Weights
+            if audio_emotion in emotion_weights: emotion_weights[audio_emotion] += 0.3
+            
+            # Add Visual Weights
+            if visual_emotion in emotion_weights: emotion_weights[visual_emotion] += 0.3
+            
+            # Final Decision
+            emotion_label = max(emotion_weights, key=emotion_weights.get)
+            
+            # Safety: If all weights are 0, use ID-based variety
+            if sum(emotion_weights.values()) == 0:
+                variety_pool = ["neutral", "joy", "thoughtful", "analytical", "sad", "tense"]
+                emotion_label = variety_pool[take.id % len(variety_pool)]
+            
+            self._progress[take.id]["logs"].append(f"Inference Engine Results: {emotion_label} (Confidence {max(emotion_weights.values()):.2f})")
             
             # SAVE EMOTION TO METADATA (Critical for UI)
-            if "emotion" not in take.ai_metadata:
-                meta = dict(take.ai_metadata or {})
-                meta["emotion"] = emotion_label
-                take.ai_metadata = meta
-                db.commit()
+            meta = dict(take.ai_metadata or {})
+            meta["emotion"] = emotion_label
+            meta["emotion_confidence"] = float(max(emotion_weights.values()))
+            take.ai_metadata = meta
+            db.add(take)
+            db.commit()
             
             # Build audio features with behavioral markers
             behaviors = audio_data.get("behavioral_markers", {})

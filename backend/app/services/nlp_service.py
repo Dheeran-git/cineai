@@ -64,11 +64,47 @@ class NLPService:
         if len(ad_libs) > 0:
             reasoning += f" Detected potential ad-libs: {', '.join(ad_libs[:3])}..."
 
+    async def analyze_emotion(self, transcript: str) -> Dict[str, Any]:
+        """
+        Analyzes the emotional tone of a transcript using semantic keywords.
+        """
+        if not transcript:
+            return {"emotion": "neutral", "intensity": 0.0}
+
+        text = transcript.lower()
+        
+        # Emotion Keyword Map (Valence/Arousal markers)
+        emotion_map = {
+            "joy": ["happy", "wonderful", "great", "excellent", "love", "excited", "wow", "amazing", "good", "perfect", "laugh"],
+            "sadness": ["sad", "terrible", "bad", "unhappy", "cry", "regret", "lost", "broken", "sorrow", "miss", "alone"],
+            "angry": ["angry", "mad", "hate", "furious", "stop", "never", "annoyed", "frustrated", "yell", "aggressive"],
+            "fear": ["scared", "afraid", "danger", "help", "threat", "risk", "panic", "worry", "fear", "dark", "compromised"],
+            "disgust": ["gross", "disgusting", "ew", "hate", "sick", "revolt", "nasty", "vile", "appalling"],
+            "surprised": ["whoa", "surprise", "sudden", "unexpected", "what", "shook", "bright", "flash", "instant"],
+            "analytical": ["monitor", "system", "data", "analysis", "technical", "calibrate", "status", "report", "coordinate"]
+        }
+
+        scores = {emotion: 0 for emotion in emotion_map.keys()}
+        
+        # Simple weighted count
+        for emotion, keywords in emotion_map.items():
+            for kw in keywords:
+                if kw in text:
+                    scores[emotion] += 1
+        
+        # Find dominant emotion
+        dominant_emotion = max(scores, key=scores.get)
+        max_score = scores[dominant_emotion]
+        
+        if max_score == 0:
+            return {"emotion": "neutral", "intensity": 0.0, "scores": scores}
+            
+        intensity = min(1.0, max_score / 3.0) # Normalize
+        
         return {
-            "similarity": similarity,
-            "ad_libs": ad_libs,
-            "reasoning": reasoning,
-            "confidence": 0.85
+            "emotion": dominant_emotion,
+            "intensity": intensity,
+            "scores": scores
         }
 
 nlp_service = NLPService()

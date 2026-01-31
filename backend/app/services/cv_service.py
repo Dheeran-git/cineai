@@ -167,9 +167,14 @@ class CVService:
                 ]
                 video_desc = narratives[seed % len(narratives)]
                 
+                energy_level = "calm" if size_mb < 5 else "dynamic" if size_mb < 15 else "high-intensity"
+                complexity = "simple" if len(heuristic_objects) < 3 else "moderate" if len(heuristic_objects) < 5 else "intricate"
+                
                 return {
                     "duration": round(est_duration, 2),
                     "objects": heuristic_objects,
+                    "energy_level": energy_level,
+                    "complexity": complexity,
                     "technical_score": round(tech_score, 1),
                     "blur_score": 0.0,
                     "reasoning": f"{reason_text} (Neural Scan: {size_mb:.1f}MB)",
