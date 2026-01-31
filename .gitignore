@@ -60,3 +60,6 @@ backend/storage/
 *.pkl
 *.pt
 *.onnx
+
+# Claude Code local settings
+.claude/settings.local.json
