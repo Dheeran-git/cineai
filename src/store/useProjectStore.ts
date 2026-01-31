@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { api } from '../lib/api';
+import { api, DashboardStats } from '../lib/api';
 
 interface ProjectState {
     projectId: number | null;
@@ -18,6 +18,8 @@ interface ProjectState {
         continuity: number;
         narrative: number;
     };
+    dashboardStats: DashboardStats | null;
+    lastUpdated: Date | null;
 
     // Actions
     timeline: unknown | null;
@@ -26,6 +28,7 @@ interface ProjectState {
     getProcessingStatus: (takeId: number) => Promise<unknown>;
     setProcessingProgress: (progress: number) => void;
     uploadMedia: (file: File) => Promise<unknown>;
+    fetchDashboardStats: (retries?: number) => Promise<void>;
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
@@ -45,6 +48,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         continuity: 0,
         narrative: 0,
     },
+    dashboardStats: null,
+    lastUpdated: null,
     timeline: null,
 
     fetchProject: async () => {
@@ -95,6 +100,32 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         } catch (err: unknown) {
             set({ error: err instanceof Error ? err.message : 'Unknown error', loading: false });
             throw err;
+        }
+    },
+
+    fetchDashboardStats: async (retries = 3) => {
+        try {
+            set({ loading: true, error: null });
+            const response = await api.projects.getDashboardStats();
+            set({
+                dashboardStats: response.data,
+                lastUpdated: new Date(),
+                loading: false
+            });
+        } catch (err: unknown) {
+            // Retry logic
+            if (retries > 0) {
+                console.log(`Retrying dashboard stats fetch... (${retries} attempts left)`);
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                return get().fetchDashboardStats(retries - 1);
+            }
+
+            // Final failure after all retries
+            set({
+                error: 'Failed to fetch dashboard statistics. Please refresh the page.',
+                loading: false
+            });
+            console.error('Dashboard stats error:', err);
         }
     }
 }));

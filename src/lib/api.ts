@@ -10,10 +10,27 @@ const apiClient = axios.create({
     },
 });
 
+// Dashboard Statistics Interface
+export interface DashboardStats {
+    totalFootage: string;
+    processingProgress: number;
+    aiConfidenceHealth: number;
+    issues: {
+        focus: number;
+        audio: number;
+        continuity: number;
+        narrative: number;
+    };
+    approvedCount: number;
+    pendingReviewCount: number;
+    totalTakes: number;
+}
+
 export const api = {
     projects: {
         getCurrent: () => apiClient.get('/projects'),
         create: (data: any) => apiClient.post('/projects', data),
+        getDashboardStats: () => apiClient.get<DashboardStats>('/projects/dashboard-stats'),
     },
     media: {
         upload: (file: File) => {
